@@ -1,4 +1,4 @@
-## Gaussian Fourier Pyramid for Local Laplacian Filte
+## Gaussian Fourier Pyramid for Local Laplacian Filter
 
 The optimized code for the paper is publishd in the part of my library [OpenCP](https://github.com/norishigefukushima/OpenCP).
 The detail part is [here](https://github.com/norishigefukushima/OpenCP/tree/master/MultiScaleFilter).
