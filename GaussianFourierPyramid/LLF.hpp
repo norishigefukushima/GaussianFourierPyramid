@@ -45,8 +45,8 @@ static void collapseLaplacianPyramid(const std::vector<cv::Mat>& LaplacianPyrami
 
 #pragma region LLF
 // Fast Local Laplacian Filter
-// M. Aubry, S. Paris, J. Kautz, and F. Durand, ÅgFast local laplacian filters: Theory and applications,ÅhACM Transactionson Graphics, vol. 33, no. 5, 2014.
-// Z. Qtang, L. He, Y. Chen, X. Chen, and D. Xu, ÅgAdaptive fast local laplacian filtersand its edge - aware application,ÅhMultimedia Toolsand Applications, vol. 78, pp. 5, 2019.
+// M. Aubry, S. Paris, J. Kautz, and F. Durand, "Fast local laplacian filters: Theory and applications," ACM Transactionson Graphics, vol. 33, no. 5, 2014.
+// Z. Qtang, L. He, Y. Chen, X. Chen, and D. Xu, "Adaptive fast local laplacian filtersand its edge - aware application," Multimedia Toolsand Applications, vol. 78, pp. 5, 2019.
 class FastLLF
 {
 private:
@@ -55,17 +55,17 @@ private:
 	const float intensityRange = 255.f;
 	const int rangeMax = 256;
 
-	std::vector<cv::Mat> GaussianPyramid;
-	std::vector<std::vector<cv::Mat>> LaplacianPyramidOrder;
-	std::vector<cv::Mat> LaplacianPyramid;
+	std::vector<cv::Mat> GaussianPyramid;////level+1
+	std::vector<std::vector<cv::Mat>> LaplacianPyramidOrder;//(level+1) x order
+	std::vector<cv::Mat> LaplacianPyramid;//level+1
 
 	bool isAdaptive = false;
-	float sigma_range = 0.f;
-	float boost = 1.f;
-	cv::Mat adaptiveSigmaMap;
-	cv::Mat adaptiveBoostMap;
+	float sigma_range = 0.f; //\sigma_r in Eq. (6)
+	float boost = 1.f;//m in Eq. (6)
+	cv::Mat adaptiveSigmaMap;//Sec III.B Pixel-by-pixel enhancement
+	cv::Mat adaptiveBoostMap;//Sec III.B Pixel-by-pixel enhancement
 
-	//compute interval parameter in linear interpolation
+	//compute interval parameter in linear interpolation (Sec. II.D. Fast Local Laplacian Filtering)
 	float getTau(const int k, const int order)
 	{
 		const float delta = intensityRange / (order - 1);
@@ -87,7 +87,6 @@ private:
 			d[i] = x * boost * exp(x * x * coeff) + s[i];
 		}
 	}
-
 	void remapAdaptive(const cv::Mat& src, cv::Mat& dest, const float g, const cv::Mat& sigma_range, const cv::Mat& boost)
 	{
 		if (src.data != dest.data) dest.create(src.size(), CV_32F);
@@ -132,7 +131,6 @@ private:
 			alpha = 1.f - (v - (i * delta)) / (delta);
 		}
 	}
-
 	//last level is not blended; thus, inplace operation for input Gaussian Pyramid is required.
 	void blendLaplacianLinear(const std::vector<std::vector<cv::Mat>>& LaplacianPyramid, std::vector<cv::Mat>& GaussianPyramid, std::vector<cv::Mat>& destPyramid, const int order)
 	{
@@ -165,7 +163,6 @@ private:
 		this->adaptiveSigmaMap = sigmaMap;
 		this->adaptiveBoostMap = boostMap;
 	}
-
 	void setFix(const float sigma_range, const float boost)
 	{
 		isAdaptive = false;
@@ -216,7 +213,6 @@ private:
 
 		LaplacianPyramid[0].convertTo(dest, src.depth());//convert 32F to output type
 	}
-
 	//main processing (same methods: Fast LLF and Fourier LLF)
 	void body(const cv::Mat& src, cv::Mat& dest, const int order, const int level)
 	{
@@ -266,7 +262,7 @@ public:
 };
 
 // Fourier Local Laplacian Filter
-// Y. Sumiya, T. Otsuka, Y. Maedaand N. Fukushima, "Gaussian Fourier Pyramid for Local Laplacian Filter," IEEE Signal Processing Letters, vol. 29, pp. 11 - 15, 2022.
+// Y. Sumiya, T. Otsuka, Y. Maedaand N. Fukushima, "Gaussian Fourier Pyramid for Local Laplacian Filter," IEEE Signal Processing Letters, vol. 29, pp. 11-15, 2022.
 class GaussianFourierLLF
 {
 private:
@@ -285,11 +281,11 @@ private:
 	std::vector<cv::Mat> GaussianPyramid; //level+1
 
 	bool isAdaptive = false;
-	float sigma_range = 0.f;
-	float boost = 1.f;
-	int level;
-	std::vector<cv::Mat> adaptiveSigmaMap;
-	std::vector<cv::Mat> adaptiveBoostMap;
+	float sigma_range = 0.f;//\sigma_r in Eq. (6)
+	float boost = 1.f;//m in Eq. (6)
+	int level = 0;
+	std::vector<cv::Mat> adaptiveSigmaMap;//Sec III.B Pixel-by-pixel enhancement
+	std::vector<cv::Mat> adaptiveBoostMap;//Sec III.B Pixel-by-pixel enhancement
 
 	double df(double x, const int K, const double Irange, const double sigma_range)
 	{
@@ -299,7 +295,6 @@ private:
 		const double phi = (x - 1.0) / s;
 		return (-kappa * exp(-phi * phi) + psi * psi * exp(-psi * psi));
 	}
-
 	double computeT_ClosedForm(int order, double sigma_range, const double intensityRange)
 	{
 		double x, diff;
@@ -314,7 +309,6 @@ private:
 		}
 		return x;
 	}
-
 	void initRangeFourier(const int order, const float sigma_range, const float boost)
 	{
 		if (alpha.size() != order)
@@ -325,8 +319,9 @@ private:
 
 		if (omega.size() != order) omega.resize(order);
 
-		T = float(intensityRange * computeT_ClosedForm(order, sigma_range, intensityRange));
+		T = float(intensityRange * computeT_ClosedForm(order, sigma_range, intensityRange));//Eq. (12), detail information is in K. Sugimoto and S. Kamata, "Compressive bilateral filtering," IEEE Transactions on Image Processing, vol. 24, no. 11, pp.3357-3369, 2015.
 
+		//compute omega and alpha in Eqs. (9) and (10)
 		for (int k = 0; k < order; k++)
 		{
 			omega[k] = float(CV_2PI / (double)T * (double)(k + 1));
@@ -347,7 +342,6 @@ private:
 			d[i] = cos(omega * s[i]);
 		}
 	}
-
 	void remapSin(const cv::Mat& src, cv::Mat& dest, const float omega)
 	{
 		dest.create(src.size(), CV_32F);
@@ -380,13 +374,11 @@ private:
 			d[i] += lalpha * (sin(ms) * c[i] - cos(ms) * (s[i]));
 		}
 	}
-
 	inline float getAdaptiveAlpha(float coeff, float base, float sigma, float boost)
 	{
 		const float a = coeff * sigma;
 		return sigma * sigma * sigma * boost * base * exp(-0.5f * a * a);
 	}
-
 	void productSumAdaptivePyramidLayer(const cv::Mat& srccos, const cv::Mat& srcsin, const cv::Mat gauss, cv::Mat& dest, const float omega, const float alpha, const cv::Mat& sigma, const cv::Mat& boost)
 	{
 		dest.create(srccos.size(), CV_32F);
@@ -416,7 +408,6 @@ private:
 		cv::buildPyramid(sigmaMap, adaptiveSigmaMap, level);
 		cv::buildPyramid(boostMap, adaptiveBoostMap, level);
 	}
-
 	void setFix(const float sigma_range, const float boost)
 	{
 		isAdaptive = false;
@@ -449,9 +440,11 @@ private:
 		{
 			// (2-2) Build Remapped Laplacian Pyramid for Cos
 			remapCos(GaussianPyramid[0], FourierPyramidCos[0], omega[k]);
+			//build cos Gaussian pyramid and then generate Laplacian pyramid
 			buildLaplacianPyramid(FourierPyramidCos[0], FourierPyramidCos, level);
 			// (2-3) Build Remapped Laplacian Pyramid for Sin
 			remapSin(GaussianPyramid[0], FourierPyramidSin[0], omega[k]);
+			//build sin Gaussian pyramid and then generate Laplacian pyramid
 			buildLaplacianPyramid(FourierPyramidSin[0], FourierPyramidSin, level);
 
 			// (3) product-sum Gaussian Fourier pyramid
@@ -478,7 +471,6 @@ private:
 
 		LaplacianPyramid[0].convertTo(dest, src.depth());//convert 32F to output type
 	}
-
 	//main processing (same methods: Fast LLF and Fourier LLF)
 	void body(const cv::Mat& src, cv::Mat& dest, const int order, const int level)
 	{
@@ -512,14 +504,14 @@ private:
 			}
 		}
 	}
-public:	
-	//fix parameter (sigma_range and boost)
+public:
+	//fix parameter (sigma_range and boost: same methods: Fast LLF and Fourier LLF)
 	void filter(const cv::Mat& src, cv::Mat& dest, const int order, const float sigma_range, const float boost, const int level = 2)
 	{
 		setFix(sigma_range, boost);
 		body(src, dest, order, level);
 	}
-	//adaptive parameter (sigma_range and boost)
+	//adaptive parameter (sigma_range and boost: same methods: Fast LLF and Fourier LLF)
 	void filter(const cv::Mat& src, cv::Mat& dest, const int order, const cv::Mat& sigma_range, const cv::Mat& boost, const int level = 2)
 	{
 		setAdaptive(sigma_range, boost, level);

@@ -41,23 +41,27 @@ void compare(const string wname, const Mat& src1, const Mat& src2)
 
 int main()
 {
+	//load image
 	Mat src = imread("flower.png");
+	//destination image
 	Mat destFastLLF, destFourierLLF, destFastLLFAaptive, destFourierLLFAaptive;
-	
-	FastLLF llf;
-	GaussianFourierLLF gfllf;
 
+	//parameter setting
 	const float sigma = 30.f;
 	const float boost = 2.f;
 	const int level = 2;
 	const int order = 4;
 
+	//create instance
+	FastLLF llf;
+	GaussianFourierLLF gfllf;
+
 	//parameter fix filter
-	llf.filter(src, destFastLLF, order * 2, sigma, boost, level);
+	llf.filter(src, destFastLLF, order * 2, sigma, boost, level);//order*2: FourierLLF requires double pyramids due to cos and sin pyramids; thus we double the order to adjust the number of pyramids.
 	gfllf.filter(src, destFourierLLF, order, sigma, boost, level);
-	
+
 	//parameter adaptive filter
-	//generate parameter maps
+	//generate parameter maps (circle shape)
 	Mat sigmaMap(src.size(), CV_32F);
 	sigmaMap.setTo(sigma);
 	circle(sigmaMap, Point(src.size()) / 2, src.cols / 4, Scalar::all(sigma * 2.f), cv::FILLED);
@@ -66,16 +70,16 @@ int main()
 	boostMap.setTo(boost);
 	circle(boostMap, Point(src.size()) / 2, src.cols / 4, Scalar::all(boost * 2.0), cv::FILLED);
 
+	//filter
 	llf.filter(src, destFastLLFAaptive, order * 2, sigmaMap, boostMap, level);
 	gfllf.filter(src, destFourierLLFAaptive, order, sigmaMap, boostMap, level);
-
-	//compare("LLF", dest1, dest2);
 
 	imshow("src", src);
 	imshow("Fast LLF dest", destFastLLF);
 	imshow("Fourier LLF dest", destFourierLLF);
 	imshow("Fast LLF Adaptive dest", destFastLLFAaptive);
-	imshow("Fourier LLF Adaptive dest", destFourierLLFAaptive);	
-	waitKey();
+	imshow("Fourier LLF Adaptive dest", destFourierLLFAaptive);
+	compare("LLF", destFastLLF, destFourierLLF);//quit `q` key
+	compare("LLF", destFastLLFAaptive, destFourierLLFAaptive);//quit `q` key
 	return 0;
 }
